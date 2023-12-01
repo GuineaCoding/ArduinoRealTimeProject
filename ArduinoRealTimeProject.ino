@@ -17,7 +17,11 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 0); // NTP server address and time offset (adjust time offset as needed)
 
 // PIR Sensor
+<<<<<<< HEAD
 const int pirPin = A6; 
+=======
+const int pirPin = A6; // Use a different pin if A1 is occupied
+>>>>>>> 1790bc78ecc8b4e84b67b9f3a0cff98a11fbfd1c
 bool pirState = LOW;
 uint32_t colorGreen = carrier.leds.Color(0, 50, 0); // Green
 uint32_t colorRed = carrier.leds.Color(50, 0, 0);   // Red
