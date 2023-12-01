@@ -55,7 +55,8 @@ void setup() {
   carrier.withCase();
   carrier.begin();
 }
-
+ 
+ 
 void sendDataToFirebase() {
   timeClient.update();
   unsigned long timestamp = timeClient.getEpochTime(); // Get current Unix timestamp
