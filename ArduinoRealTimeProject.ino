@@ -7,6 +7,7 @@
 #include <NTPClient.h>
 #include <time.h>
 #include "icons.h"
+#include <TimeLib.h>
 
 
 char ssid[] = SECRET_SSID; // Network SSID
@@ -15,7 +16,7 @@ char pass[] = SECRET_PASS; // Network password
 MKRIoTCarrier carrier;
 FirebaseData fbdo;
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", 0); // NTP server address and time offset (adjust time offset as needed)
+NTPClient timeClient(ntpUDP); 
 
 // PIR Sensor
 const int pirPin = A6; 
@@ -28,6 +29,12 @@ bool motionDetected = false;
 unsigned long motionDetectedTime = 0;
 const unsigned long redLightDuration = 30000; // 30 seconds
 uint8_t gesture = carrier.Light.readGesture(); 
+
+
+unsigned long displayStartMillis = 0; // Global variable to store start time
+const unsigned long displayDuration = 20000; // Display duration in milliseconds (20 seconds)
+bool displayActive = false; // Flag to indicate whether the display is active
+
 
 
 void setup() {
@@ -44,7 +51,6 @@ void setup() {
 
   // Initialize NTP Client
   timeClient.begin();
-  timeClient.setTimeOffset(3600); 
 
   // Initialize Firebase
   Firebase.begin(FIREBASE_HOST, FIREBASE_SECRET, ssid, pass);
@@ -59,6 +65,7 @@ void sendDataToFirebase() {
   timeClient.update();
   unsigned long timestamp = timeClient.getEpochTime(); // Get current Unix timestamp
 
+  Serial.println("Time synchronized");
   // Read sensor data
   float temperature = carrier.Env.readTemperature();
   float humidity = carrier.Env.readHumidity();
@@ -104,17 +111,22 @@ void loop() {
     uint8_t gesture = carrier.Light.readGesture();
     Serial.println(gesture);
 
-    if (gesture == UP) { // Replace APDS9960_DIR_UP with the appropriate constant for "up" gesture
+    if (gesture == UP) { // 
     carrier.Buzzer.beep(800, 20);
       displayDateTimeTempHumidity();
     }
   }
 
-  // Check if button 0 is pressed
+    // Check if button 0 is pressed
   if (carrier.Buttons.onTouchDown(TOUCH0)) {
     carrier.Buzzer.beep(800, 20);
     displayDateTimeTempHumidity();
   }
+
+      if (displayActive && (millis() - displayStartMillis >= displayDuration)) {
+        carrier.display.fillScreen(ST77XX_BLACK); // Turn the display black
+        displayActive = false; // Reset the display active flag
+    }
 
   // pirState = digitalRead(pirPin);
   // Serial.println(pirState);
@@ -150,11 +162,11 @@ void loop() {
 void displayDateTimeTempHumidity() {
   carrier.display.setRotation(180);
   timeClient.update();
+  String greeting;
 
   // Get the current Unix timestamp and convert to time structure
   time_t rawtime = timeClient.getEpochTime();
-  struct tm * ti;
-  ti = localtime(&rawtime);
+  struct tm *ti = localtime(&rawtime);
 
   char currentDate[11]; // Buffer to store the formatted date
   strftime(currentDate, sizeof(currentDate), "%Y-%m-%d", ti); // Format date as YYYY-MM-DD
@@ -164,23 +176,80 @@ void displayDateTimeTempHumidity() {
   float temperature = carrier.Env.readTemperature();
   float humidity = carrier.Env.readHumidity();
 
-  // Clear the screen and set background color
-  carrier.display.fillScreen(0x07E0);
+  // Clear the screen
+  carrier.display.fillScreen(ST77XX_BLACK);
 
-  carrier.display.setTextColor(0x001F);
+  // Set background gradient based on the current hour
+  uint16_t width = carrier.display.width();
+  uint16_t height = carrier.display.height();
+  uint8_t r, g, b;
+  int currentHour = timeClient.getHours();
+  Serial.println(currentHour);
+
+  // Define the gradient color based on the time of day
+  for (int y = 0; y < height; y++) {
+    if (currentHour >= 6 && currentHour < 12) {
+      // Morning: Sunny gradient
+      greeting = "Good Morning";
+      r = map(y, 0, height - 1, 255, 255);
+      g = map(y, 0, height - 1, 200, 100);
+      b = map(y, 0, height - 1, 50, 0);
+    } else if (currentHour >= 12 && currentHour <= 18) {
+      // Afternoon: Orange gradient
+      greeting = "Good Afternoon";
+      r = map(y, 0, height - 1, 255, 204);
+      g = map(y, 0, height - 1, 128, 50);
+      b = map(y, 0, height - 1, 0, 0);
+    } else {
+      // Evening/Night: Darker gradient
+      greeting = "Good Evening";
+      r = map(y, 0, height - 1, 0, 50);
+      g = map(y, 0, height - 1, 0, 50);
+      b = map(y, 0, height - 1, 100, 150);
+    }
+    carrier.display.drawFastHLine(0, y, width, carrier.display.color565(r, g, b));
+  }
+
+  // Set text color contrasting with the background
+  carrier.display.setTextColor(ST77XX_WHITE);
   carrier.display.setTextSize(2);
 
-  // Adjust the coordinates in setCursor to change position
-  carrier.display.setCursor(40, 25); // Adjust these values as needed
+     if (currentHour >= 6 && currentHour < 12) {
+        // Morning
+        carrier.display.drawBitmap(25, 30, m_sun, 48, 48, ST77XX_WHITE);
+    } else if (currentHour >= 12 && currentHour <= 18) {
+        // Afternoon
+        carrier.display.drawBitmap(25, 70, m_sun_with_clouds, 48, 48, ST77XX_WHITE);
+    } else {
+        // Evening/Night
+        carrier.display.drawBitmap(25, 70, m_moon, 48, 48, ST77XX_WHITE);
+    }
+
+  carrier.display.setCursor(40, 65);
+  carrier.display.println(greeting);
+  
+
+  // Display the date
+  carrier.display.drawBitmap(50, 80, m_calendar, 48, 48, ST77XX_WHITE);
+  carrier.display.setCursor(50, 105);
   carrier.display.println(currentDate);
 
-  carrier.display.setCursor(30, 55); // Adjust these values as needed
+  // Display the time
+  carrier.display.drawBitmap(50, 30, m_clock, 48, 48, ST77XX_WHITE);
+  carrier.display.setCursor(40, 65);
   carrier.display.println(currentTime);
 
-  carrier.display.setCursor(30, 85); // Adjust these values as needed
-  carrier.display.drawBitmap(25, 70, m_thermostat, 48, 48, 0xDAC9);
+  // Display the temperature
+  carrier.display.drawBitmap(50, 30, m_thermostat, 48, 48, ST77XX_WHITE);
+  carrier.display.setCursor(40, 95);
   carrier.display.println(String(temperature) + " C");
+  
 
-  carrier.display.setCursor(30, 115); // Adjust these values as needed
+  // Display the humidity
+  carrier.display.drawBitmap(50, 30, m_humidity, 48, 48, ST77XX_WHITE);
+  carrier.display.setCursor(30, 115);
   carrier.display.println("Hum: " + String(humidity) + "%");
+    displayActive = true; // Set the display active flag
+    displayStartMillis = millis(); // Record the start time
 }
+
