@@ -160,95 +160,96 @@ void loop() {
 
 
 void displayDateTimeTempHumidity() {
-  carrier.display.setRotation(180);
-  timeClient.update();
-  String greeting;
+    carrier.display.setRotation(180);
+    timeClient.update();
+    String greeting;
 
-  // Get the current Unix timestamp and convert to time structure
-  time_t rawtime = timeClient.getEpochTime();
-  struct tm *ti = localtime(&rawtime);
+    // Get the current Unix timestamp and convert to time structure
+    time_t rawtime = timeClient.getEpochTime();
+    struct tm *ti = localtime(&rawtime);
 
-  char currentDate[11]; // Buffer to store the formatted date
-  strftime(currentDate, sizeof(currentDate), "%Y-%m-%d", ti); // Format date as YYYY-MM-DD
+    char currentDate[11]; // Buffer to store the formatted date
+    strftime(currentDate, sizeof(currentDate), "%Y-%m-%d", ti); // Format date as YYYY-MM-DD
 
-  String currentTime = timeClient.getFormattedTime();
+    String currentTime = timeClient.getFormattedTime();
 
-  float temperature = carrier.Env.readTemperature();
-  float humidity = carrier.Env.readHumidity();
+    float temperature = carrier.Env.readTemperature();
+    float humidity = carrier.Env.readHumidity();
 
-  // Clear the screen
-  carrier.display.fillScreen(ST77XX_BLACK);
+    // Display dimensions and bitmap size
+    int displayWidth = carrier.display.width();
+    int displayHeight = carrier.display.height();
+    int bitmapSize = 48; // Size of the  images
+    int spacing = 10; // Spacing between elements
 
-  // Set background gradient based on the current hour
-  uint16_t width = carrier.display.width();
-  uint16_t height = carrier.display.height();
-  uint8_t r, g, b;
-  int currentHour = timeClient.getHours();
-  Serial.println(currentHour);
+    // Text size settings
+    carrier.display.setTextSize(2);
+    int charWidth = 6 * 2; 
+    int charHeight = 8 * 2; 
 
-  // Define the gradient color based on the time of day
-  for (int y = 0; y < height; y++) {
-    if (currentHour >= 6 && currentHour < 12) {
-      // Morning: Sunny gradient
-      greeting = "Good Morning";
-      r = map(y, 0, height - 1, 255, 255);
-      g = map(y, 0, height - 1, 200, 100);
-      b = map(y, 0, height - 1, 50, 0);
-    } else if (currentHour >= 12 && currentHour <= 18) {
-      // Afternoon: Orange gradient
-      greeting = "Good Afternoon";
-      r = map(y, 0, height - 1, 255, 204);
-      g = map(y, 0, height - 1, 128, 50);
-      b = map(y, 0, height - 1, 0, 0);
-    } else {
-      // Evening/Night: Darker gradient
-      greeting = "Good Evening";
-      r = map(y, 0, height - 1, 0, 50);
-      g = map(y, 0, height - 1, 0, 50);
-      b = map(y, 0, height - 1, 100, 150);
-    }
-    carrier.display.drawFastHLine(0, y, width, carrier.display.color565(r, g, b));
-  }
-
-  // Set text color contrasting with the background
-  carrier.display.setTextColor(ST77XX_WHITE);
-  carrier.display.setTextSize(2);
-
-     if (currentHour >= 6 && currentHour < 12) {
-        // Morning
-        carrier.display.drawBitmap(25, 30, m_sun, 48, 48, ST77XX_WHITE);
-    } else if (currentHour >= 12 && currentHour <= 18) {
-        // Afternoon
-        carrier.display.drawBitmap(25, 70, m_sun_with_clouds, 48, 48, ST77XX_WHITE);
-    } else {
-        // Evening/Night
-        carrier.display.drawBitmap(25, 70, m_moon, 48, 48, ST77XX_WHITE);
+    // Define the gradient color based on the time of day
+    int currentHour = timeClient.getHours();
+    uint8_t r, g, b;
+    for (int y = 0; y < displayHeight; y++) {
+        if (currentHour >= 6 && currentHour < 12) {
+            // Morning: Sunny gradient
+            greeting = "Good Morning";
+            r = map(y, 0, displayHeight - 1, 255, 255);
+            g = map(y, 0, displayHeight - 1, 200, 100);
+            b = map(y, 0, displayHeight - 1, 50, 0);
+        } else if (currentHour >= 12 && currentHour <= 18) {
+            // Afternoon: Orange gradient
+            greeting = "Good Afternoon";
+            r = map(y, 0, displayHeight - 1, 255, 204);
+            g = map(y, 0, displayHeight - 1, 128, 50);
+            b = map(y, 0, displayHeight - 1, 0, 0);
+        } else {
+            // Evening/Night: Darker gradient
+            greeting = "Good Evening";
+            r = map(y, 0, displayHeight - 1, 0, 50);
+            g = map(y, 0, displayHeight - 1, 0, 50);
+            b = map(y, 0, displayHeight - 1, 100, 150);
+        }
+        carrier.display.drawFastHLine(0, y, displayWidth, carrier.display.color565(r, g, b));
     }
 
-  carrier.display.setCursor(40, 65);
-  carrier.display.println(greeting);
-  
+    int yPos = 30; // Starting Y position
 
-  // Display the date
-  carrier.display.drawBitmap(50, 80, m_calendar, 48, 48, ST77XX_WHITE);
-  carrier.display.setCursor(50, 105);
-  carrier.display.println(currentDate);
+    // Draw greeting text
+    int textX = (displayWidth - greeting.length() * charWidth) / 2;
+    carrier.display.setCursor(textX, yPos);
+    carrier.display.println(greeting);
+    yPos += charHeight + spacing;
 
-  // Display the time
-  carrier.display.drawBitmap(50, 30, m_clock, 48, 48, ST77XX_WHITE);
-  carrier.display.setCursor(40, 65);
-  carrier.display.println(currentTime);
+    // Display date 
+    carrier.display.drawBitmap(10, yPos, m_calendar, bitmapSize, bitmapSize, ST77XX_WHITE);
+    textX = 10 + bitmapSize + 5;
+    carrier.display.setCursor(textX, yPos + (bitmapSize - charHeight) / 2);
+    carrier.display.println(currentDate);
+    yPos += bitmapSize + spacing;
 
-  // Display the temperature
-  carrier.display.drawBitmap(50, 30, m_thermostat, 48, 48, ST77XX_WHITE);
-  carrier.display.setCursor(40, 95);
-  carrier.display.println(String(temperature) + " C");
-  
+    // Display time w
+    carrier.display.drawBitmap(10, yPos, m_clock, bitmapSize, bitmapSize, ST77XX_WHITE);
+    textX = 10 + bitmapSize + 5;
+    carrier.display.setCursor(textX, yPos + (bitmapSize - charHeight) / 2);
+    carrier.display.println(currentTime);
+    yPos += bitmapSize + spacing;
 
-  // Display the humidity
-  carrier.display.drawBitmap(50, 30, m_humidity, 48, 48, ST77XX_WHITE);
-  carrier.display.setCursor(30, 115);
-  carrier.display.println("Hum: " + String(humidity) + "%");
+    // Display temperature 
+    String tempString = String(temperature) + " C";
+    carrier.display.drawBitmap(10, yPos, m_thermostat, bitmapSize, bitmapSize, ST77XX_WHITE);
+    textX = 10 + bitmapSize + 5;
+    carrier.display.setCursor(textX, yPos + (bitmapSize - charHeight) / 2);
+    carrier.display.println(tempString);
+    yPos += bitmapSize + spacing;
+
+    // Display humidity 
+    String humidityString = "Hum: " + String(humidity) + "%";
+    carrier.display.drawBitmap(10, yPos, m_humidity, bitmapSize, bitmapSize, ST77XX_WHITE);
+    textX = 10 + bitmapSize + 5;
+    carrier.display.setCursor(textX, yPos + (bitmapSize - charHeight) / 2);
+    carrier.display.println(humidityString);
+
     displayActive = true; // Set the display active flag
     displayStartMillis = millis(); // Record the start time
 }
