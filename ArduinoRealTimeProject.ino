@@ -66,7 +66,7 @@ void sendDataToFirebase() {
   timeClient.update();
   unsigned long timestamp = timeClient.getEpochTime();  // Get current Unix timestamp
 
-  Serial.println("Time synchronized");
+  // Serial.println("Time synchronized");
   // Read sensor data
   float temperature = carrier.Env.readTemperature();
   float humidity = carrier.Env.readHumidity();
@@ -75,12 +75,18 @@ void sendDataToFirebase() {
   float gasResistor = carrier.AirQuality.readGasResistor();
   float volatileOrganicCompounds = carrier.AirQuality.readVOC();
   float co2 = carrier.AirQuality.readCO2();
-  Serial.print("Gas Resistor: ");
-  Serial.println(gasResistor);
-  Serial.print("VOCs: ");
-  Serial.println(volatileOrganicCompounds);
-  Serial.print("CO2: ");
-  Serial.println(co2);
+  pirState = digitalRead(pirPin);
+  if (pirState == HIGH) {
+  Serial.println(pirState);
+    Serial.println(" ");
+    Serial.println("High ");
+  };
+    pirState = digitalRead(pir);
+  Serial.println(pirState);
+
+    if (pirState == LOW) {
+  Serial.println(pirState);
+  };
 
   // Create a unique path for each set of readings using a timestamp
   String path = "sensorReadings/" + String(timestamp);
@@ -90,12 +96,16 @@ void sendDataToFirebase() {
   Firebase.setFloat(fbdo, path + "/humidity", humidity);
   Firebase.setFloat(fbdo, path + "/pressure", pressure);
   Firebase.setInt(fbdo, path + "/moisture", moisture);
+  Firebase.setInt(fbdo, path + "/gasResistor", gasResistor);
+  Firebase.setInt(fbdo, path + "/volatileOrganicCompounds", volatileOrganicCompounds);
+  Firebase.setInt(fbdo, path + "/co2", co2);
+  Firebase.setInt(fbdo, path + "/timestamp", timestamp);
 }
 
 
 
 void loop() {
-  // sendDataToFirebase();
+  sendDataToFirebase();
 
   //   if (Firebase.getBool(fbdo, "ledCommand/red")) {
   //   if (fbdo.dataType() == "boolean") {
