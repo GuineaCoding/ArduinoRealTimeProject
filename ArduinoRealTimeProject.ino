@@ -64,42 +64,48 @@ void setup() {
 
 void sendDataToFirebase() {
   timeClient.update();
-  unsigned long timestamp = timeClient.getEpochTime();  // Get current Unix timestamp
+  unsigned long timestamp = timeClient.getEpochTime(); // Get current Unix timestamp
 
-  // Serial.println("Time synchronized");
   // Read sensor data
   float temperature = carrier.Env.readTemperature();
   float humidity = carrier.Env.readHumidity();
-  float pressure = carrier.Pressure.readPressure();
+  float pressureKPa = carrier.Pressure.readPressure();
   int moisture = analogRead(A0);
   float gasResistor = carrier.AirQuality.readGasResistor();
   float volatileOrganicCompounds = carrier.AirQuality.readVOC();
   float co2 = carrier.AirQuality.readCO2();
   pirState = digitalRead(pirPin);
-  if (pirState == HIGH) {
-  Serial.println(pirState);
-    Serial.println(" ");
-    Serial.println("High ");
-  };
-    pirState = digitalRead(pir);
-  Serial.println(pirState);
 
-    if (pirState == LOW) {
-  Serial.println(pirState);
-  };
+  // Convert pressure from kPa to psi
+  float pressurePsi = pressureKPa * 0.145038;
 
   // Create a unique path for each set of readings using a timestamp
   String path = "sensorReadings/" + String(timestamp);
 
+  // Convert timestamp to time_t for date formatting
+  time_t rawtime = static_cast<time_t>(timestamp);
+  struct tm *timeinfo = localtime(&rawtime);
+
+  char currentDate[11]; // Buffer to store the formatted date
+  strftime(currentDate, sizeof(currentDate), "%Y-%m-%d", timeinfo); // Format date as YYYY-MM-DD
+  String currentTime = timeClient.getFormattedTime();
+
   // Send data to Firebase
   Firebase.setFloat(fbdo, path + "/temperature", temperature);
   Firebase.setFloat(fbdo, path + "/humidity", humidity);
-  Firebase.setFloat(fbdo, path + "/pressure", pressure);
+  Firebase.setFloat(fbdo, path + "/pressureKPa", pressureKPa);
+  Firebase.setFloat(fbdo, path + "/pressurePsi", pressurePsi);
   Firebase.setInt(fbdo, path + "/moisture", moisture);
-  Firebase.setInt(fbdo, path + "/gasResistor", gasResistor);
-  Firebase.setInt(fbdo, path + "/volatileOrganicCompounds", volatileOrganicCompounds);
-  Firebase.setInt(fbdo, path + "/co2", co2);
+  Firebase.setFloat(fbdo, path + "/gasResistor", gasResistor);
+  Firebase.setFloat(fbdo, path + "/volatileOrganicCompounds", volatileOrganicCompounds);
+  Firebase.setFloat(fbdo, path + "/co2", co2);
   Firebase.setInt(fbdo, path + "/timestamp", timestamp);
+
+  // Send date and time as strings
+  Firebase.setString(fbdo, path + "/date", currentDate);
+  Firebase.setString(fbdo, path + "/time", currentTime);
+
+  Firebase.setInt(fbdo, path + "/pirState", pirState);
 }
 
 
@@ -161,7 +167,7 @@ void loop() {
   // }
   // carrier.leds.show();
 
-  delay(1000);
+  delay(10000);
 }
 
 // void displayMessage(const char* message) {
