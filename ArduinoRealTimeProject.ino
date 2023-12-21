@@ -76,9 +76,6 @@ void sendDataToFirebase() {
   float co2 = carrier.AirQuality.readCO2();
   pirState = digitalRead(pirPin);
 
-  // Convert pressure from kPa to psi
-  float pressurePsi = pressureKPa * 0.145038;
-
   // Create a unique path for each set of readings using a timestamp
   String path = "sensorReadings/" + String(timestamp);
 
@@ -94,7 +91,6 @@ void sendDataToFirebase() {
   Firebase.setFloat(fbdo, path + "/temperature", temperature);
   Firebase.setFloat(fbdo, path + "/humidity", humidity);
   Firebase.setFloat(fbdo, path + "/pressureKPa", pressureKPa);
-  Firebase.setFloat(fbdo, path + "/pressurePsi", pressurePsi);
   Firebase.setInt(fbdo, path + "/moisture", moisture);
   Firebase.setFloat(fbdo, path + "/gasResistor", gasResistor);
   Firebase.setFloat(fbdo, path + "/volatileOrganicCompounds", volatileOrganicCompounds);
@@ -104,26 +100,20 @@ void sendDataToFirebase() {
   // Send date and time as strings
   Firebase.setString(fbdo, path + "/date", currentDate);
   Firebase.setString(fbdo, path + "/time", currentTime);
-
   Firebase.setInt(fbdo, path + "/pirState", pirState);
 }
 
 
-
 void loop() {
-  sendDataToFirebase();
+  static unsigned long lastFirebaseUpdate = 0;  // Last time the data was sent to Firebase
+  unsigned long currentMillis = millis();
 
-  //   if (Firebase.getBool(fbdo, "ledCommand/red")) {
-  //   if (fbdo.dataType() == "boolean") {
-  //     bool red = fbdo.boolData();
-  //     if (red) {
-  //       carrier.display.fillScreen(0x07E0);
-  //     } else {
-  //       carrier.display.fillScreen(0x0000FF);
-  //     }
-  //     carrier.leds.show();
-  //   }
-  // }
+  // Check if it's time to send data to Firebase
+  if (currentMillis - lastFirebaseUpdate >= 60000) {  // 60 seconds interval
+    // sendDataToFirebase();
+    lastFirebaseUpdate = currentMillis;
+  }
+
   carrier.Buttons.update();  // Update the status of the touch buttons
 
   // Check for the "UP" gesture
@@ -131,7 +121,7 @@ void loop() {
     uint8_t gesture = carrier.Light.readGesture();
     Serial.println(gesture);
 
-    if (gesture == UP) {  //
+    if (gesture == UP) {
       carrier.Buzzer.beep(800, 20);
       displayDateTimeTempHumidity();
     }
@@ -148,35 +138,43 @@ void loop() {
     displayActive = false;                     // Reset the display active flag
   }
 
-  // pirState = digitalRead(pirPin);
-  // Serial.println(pirState);
+  holidayMode(fbdo, pirPin, colorRed);
 
-  // if (pirState == HIGH) {
-  //   if (!motionDetected) {
-  //     motionDetected = true;
-  //     motionDetectedTime = millis();
-  //     // displayMessage("Warning! Movement detected.");
-  //     carrier.leds.fill(colorRed, 0, 5);
-  //   }
-  // } else {
-  //   if (motionDetected && millis() - motionDetectedTime > redLightDuration) {
-  //     motionDetected = false;
-  //     // displayMessage("No movement detected. Everything is good here.");
-  //     carrier.leds.fill(colorGreen, 0, 5);
-  //   }
-  // }
-  // carrier.leds.show();
-
-  delay(10000);
 }
 
-// void displayMessage(const char* message) {
-//   Serial.println(message);
-//   carrier.display.fillScreen(ST77XX_BLACK);
-//   carrier.display.setCursor(30, 100);
-//   carrier.display.setTextSize(2);
-//   carrier.display.println(message);
-// }
+void holidayMode(FirebaseData &fbdo, int pirPin, uint32_t colorRed) {
+    // Check the holiday mode status in Firebase
+    if (Firebase.getBool(fbdo, "holidayMode/status") && fbdo.boolData()) {
+        // Reading PIR sensor state
+        int pirState = digitalRead(pirPin);
+        Serial.println(pirState);
+
+        // Check for motion
+        if (pirState == HIGH) {
+            // Motion detected
+            // Activate buzzer
+            // carrier.Buzzer.sound(1000); 
+
+            // Activate red lights
+            carrier.leds.fill(colorRed, 0, 5);
+            carrier.leds.show();
+        } else {
+            // No motion detected
+            // Deactivate buzzer
+            carrier.Buzzer.noSound();
+
+            // Turn off lights
+            carrier.leds.clear();
+            carrier.leds.show();
+        }
+    } else {
+        // Holiday mode is not active in Firebase
+        carrier.Buzzer.noSound();
+        carrier.leds.clear();
+        carrier.leds.show();
+    }
+}
+
 
 
 void displayDateTimeTempHumidity() {
