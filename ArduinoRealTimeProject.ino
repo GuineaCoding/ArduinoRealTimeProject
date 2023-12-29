@@ -110,7 +110,7 @@ void loop() {
 
   // Check if it's time to send data to Firebase
   if (currentMillis - lastFirebaseUpdate >= 60000) {  // 60 seconds interval
-    // sendDataToFirebase();
+    sendDataToFirebase();
     lastFirebaseUpdate = currentMillis;
   }
 
@@ -143,27 +143,34 @@ void loop() {
 }
 
 void holidayMode(FirebaseData &fbdo, int pirPin, uint32_t colorRed) {
+    static unsigned long lastMotionTime = 0; // Store the last time motion was detected
+    const long duration = 120000; // Duration to keep the lights and buzzer on (2 minutes)
+
     // Check the holiday mode status in Firebase
     if (Firebase.getBool(fbdo, "holidayMode/status") && fbdo.boolData()) {
-        // Reading PIR sensor state
         int pirState = digitalRead(pirPin);
         Serial.println(pirState);
 
-        // Check for motion
         if (pirState == HIGH) {
             // Motion detected
+            lastMotionTime = millis(); // Update the last motion time
+
             // Activate buzzer
-            // carrier.Buzzer.sound(1000); 
+            carrier.Buzzer.sound(1000);
 
             // Activate red lights
             carrier.leds.fill(colorRed, 0, 5);
             carrier.leds.show();
+        }
+        
+        // Check if 2 minutes have not yet passed since the last motion was detected
+        if (millis() - lastMotionTime < duration) {
+            // Keep the lights and buzzer on for 2 minutes
+            // Reactivate the buzzer if it turns off automatically
+            carrier.Buzzer.sound(1000);
         } else {
-            // No motion detected
-            // Deactivate buzzer
+            // Time is up, turn off the lights and buzzer
             carrier.Buzzer.noSound();
-
-            // Turn off lights
             carrier.leds.clear();
             carrier.leds.show();
         }
@@ -174,7 +181,6 @@ void holidayMode(FirebaseData &fbdo, int pirPin, uint32_t colorRed) {
         carrier.leds.show();
     }
 }
-
 
 
 void displayDateTimeTempHumidity() {
