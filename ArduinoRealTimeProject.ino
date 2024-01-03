@@ -39,8 +39,8 @@ bool displayActive = false;                   // Flag to indicate whether the di
 
 void setup() {
   Serial.begin(9600);
-  while (!Serial)
-    ;  // Wait for the serial port to connect
+  // while (!Serial)
+  //   ;  // Wait for the serial port to connect
 
   // Connect to Wi-Fi
   WiFi.begin(ssid, pass);
@@ -64,7 +64,7 @@ void setup() {
 
 void sendDataToFirebase() {
   timeClient.update();
-  unsigned long timestamp = timeClient.getEpochTime(); // Get current Unix timestamp
+  unsigned long timestamp = timeClient.getEpochTime();
 
   // Read sensor data
   float temperature = carrier.Env.readTemperature();
@@ -76,33 +76,31 @@ void sendDataToFirebase() {
   float co2 = carrier.AirQuality.readCO2();
   pirState = digitalRead(pirPin);
 
-  // Create a unique path for each set of readings using a timestamp
-  String path = "sensorReadings/" + String(timestamp);
+  char path[50]; // Make sure this is large enough for the path
+  sprintf(path, "sensorReadings/%lu", timestamp);
 
-  // Convert timestamp to time_t for date formatting
   time_t rawtime = static_cast<time_t>(timestamp);
   struct tm *timeinfo = localtime(&rawtime);
 
   char currentDate[11]; // Buffer to store the formatted date
   strftime(currentDate, sizeof(currentDate), "%Y-%m-%d", timeinfo); // Format date as YYYY-MM-DD
-  String currentTime = timeClient.getFormattedTime();
+
+  char currentTime[9]; // HH:MM:SS
+  strncpy(currentTime, timeClient.getFormattedTime().c_str(), sizeof(currentTime));
 
   // Send data to Firebase
-  Firebase.setFloat(fbdo, path + "/temperature", temperature);
-  Firebase.setFloat(fbdo, path + "/humidity", humidity);
-  Firebase.setFloat(fbdo, path + "/pressureKPa", pressureKPa);
-  Firebase.setInt(fbdo, path + "/moisture", moisture);
-  Firebase.setFloat(fbdo, path + "/gasResistor", gasResistor);
-  Firebase.setFloat(fbdo, path + "/volatileOrganicCompounds", volatileOrganicCompounds);
-  Firebase.setFloat(fbdo, path + "/co2", co2);
-  Firebase.setInt(fbdo, path + "/timestamp", timestamp);
-
-  // Send date and time as strings
-  Firebase.setString(fbdo, path + "/date", currentDate);
-  Firebase.setString(fbdo, path + "/time", currentTime);
-  Firebase.setInt(fbdo, path + "/pirState", pirState);
+  Firebase.setFloat(fbdo, String(path) + "/temperature", temperature);
+  Firebase.setFloat(fbdo, String(path) + "/humidity", humidity);
+  Firebase.setFloat(fbdo, String(path) + "/pressureKPa", pressureKPa);
+  Firebase.setInt(fbdo, String(path) + "/moisture", moisture);
+  Firebase.setFloat(fbdo, String(path) + "/gasResistor", gasResistor);
+  Firebase.setFloat(fbdo, String(path) + "/volatileOrganicCompounds", volatileOrganicCompounds);
+  Firebase.setFloat(fbdo, String(path) + "/co2", co2);
+  Firebase.setInt(fbdo, String(path) + "/timestamp", timestamp);
+  Firebase.setString(fbdo, String(path) + "/date", currentDate);
+  Firebase.setString(fbdo, String(path) + "/time", currentTime);
+  Firebase.setInt(fbdo, String(path) + "/pirState", pirState);
 }
-
 
 void loop() {
   static unsigned long lastFirebaseUpdate = 0;  // Last time the data was sent to Firebase
