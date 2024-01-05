@@ -27,7 +27,7 @@ Part 3: Ionic app and can be accessed here: <a href="https://github.com/GuineaCo
 - **Motion Detection**: Utilizes PIR sensors for motion detection with custom alert systems.
 - **Firebase Integration**: Seamlessly sends sensor data to Firebase for real-time monitoring and analytics.
 - **Gesture Control**: Includes gesture recognition for interactive control.
-- **OLED Display**: Shows environmental data and system status on an integrated OLED display.
+- **Arduino Smart Watches**: Shows environmental data and system status on an integrated OLED display.
 - **Holiday Mode**: Special mode for enhanced security and alert systems during holidays.
 
 ## Main Requirements
